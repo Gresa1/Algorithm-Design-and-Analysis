@@ -1,3 +1,9 @@
+import time
+import psutil
+import os
+# from memory_profiler import profile
+
+
 # Function to perform Caesar Cipher (both encryption and decryption)
 def caesar_cipher(text, shift, mode='encrypt'):
     result = ''  # Final result string (encrypted or decrypted)
@@ -41,6 +47,79 @@ def decrypt_file(input_path, output_path, shift):
 
     print("Decryption complete. Decrypted file saved to:", output_path)
 
+# ----------------------------------------------------------
+# Runtime Measurement Functions
+# ----------------------------------------------------------
+
+def test_runtime(input_path, output_path, shift, mode='encrypt', iterations=5):
+    times = []
+    for _ in range(iterations):
+        start_time = time.time()
+        if mode == 'encrypt':
+            encrypt_file(input_path, output_path, shift)
+        elif mode == 'decrypt':
+            decrypt_file(input_path, output_path, shift)
+        else:
+            raise ValueError("Mode must be either 'encrypt' or 'decrypt'")
+        end_time = time.time()
+        times.append(end_time - start_time)
+    average_time = sum(times) / len(times)
+    print(f"Average {mode} time for {input_path}: {average_time:.4f} seconds")
+    return average_time
+
+# ----------------------------------------------------------
+# Memory Measurement Functions (Using psutil)
+# ----------------------------------------------------------
+
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 ** 2  # Return memory usage in MB
+
+def test_memory_psutil(input_path, output_path, shift, mode='encrypt'):
+    mem_before = get_memory_usage()
+    if mode == 'encrypt':
+        encrypt_file(input_path, output_path, shift)
+    elif mode == 'decrypt':
+        decrypt_file(input_path, output_path, shift)
+    else:
+        raise ValueError("Mode must be either 'encrypt' or 'decrypt'")
+    mem_after = get_memory_usage()
+    memory_increase = mem_after - mem_before
+    print(f"Memory usage increased by {memory_increase:.4f} MB during {mode}")
+    return memory_increase
+# ----------------------------------------------------------
+# Experiment Function to Run Tests on Multiple Files
+# ----------------------------------------------------------
+def run_experiments(shift_value):
+    # Define a list with tuples: (input file, encrypted file, decrypted file)
+    test_files = [
+        ("text_10KB.txt", "encrypted_10KB.txt", "decrypted_10KB.txt"),
+        ("text_100KB.txt", "encrypted_100KB.txt", "decrypted_100KB.txt"),
+        ("text_1MB.txt", "encrypted_1MB.txt", "decrypted_1MB.txt")
+    ]
+    
+    iterations = 3  # Number of runs to average runtime measurements
+
+    for input_file, encrypted_file, decrypted_file in test_files:
+        print("\n===============================================")
+        print(f"Testing file: {input_file}")
+        
+        # Test Encryption
+        print("\n--- Encryption ---")
+        avg_enc_time = test_runtime(input_file, encrypted_file, shift_value, mode='encrypt', iterations=iterations)
+        mem_enc_usage = test_memory_psutil(input_file, encrypted_file, shift_value, mode='encrypt')
+
+        # Test Decryption (using the already encrypted file)
+        print("\n--- Decryption ---")
+        avg_dec_time = test_runtime(encrypted_file, decrypted_file, shift_value, mode='decrypt', iterations=iterations)
+        mem_dec_usage = test_memory_psutil(encrypted_file, decrypted_file, shift_value, mode='decrypt')
+        
+        # Print a summary of the results for the current file
+        print("\n------ Summary for", input_file, "------")
+        print(f"Encryption: Average runtime = {avg_enc_time:.4f} s, Memory increase = {mem_enc_usage:.4f} MB")
+        print(f"Decryption: Average runtime = {avg_dec_time:.4f} s, Memory increase = {mem_dec_usage:.4f} MB")
+        print("===============================================\n")
+
 # Main program starts here
 if __name__ == "__main__":
     try:
@@ -51,7 +130,8 @@ if __name__ == "__main__":
         print("\nChoose an option:")
         print("1. Encrypt a file")
         print("2. Decrypt a file")
-        choice = input("Enter your choice (1 or 2): ")
+        print("3. Run experiments on multiple test files")
+        choice = input("Enter your choice (1, 2, or 3): ")
 
         # Run the appropriate function based on user's choice
         if choice == '1':
@@ -72,6 +152,9 @@ if __name__ == "__main__":
             with open('decrypted.txt', 'r') as f:
                 print("\nDecrypted file contents:")
                 print(f.read())
+        elif choice == '3':
+            run_experiments(shift_value)
+            
         else:
             print("Invalid choice. Please enter 1 or 2.")
 
